@@ -32,7 +32,14 @@ def package_is_available(
     Returns:
         If the package is available for import.
     """
-    available = importlib.util.find_spec(name) is not None
+    try:
+        available = importlib.util.find_spec(name) is not None
+    except ModuleNotFoundError as exc:
+        # A dotted import also fails when one of its parent packages is missing.
+        # Preserve errors from unrelated dependencies imported by an existing parent.
+        if exc.name is None or not (name == exc.name or name.startswith(exc.name + ".")):
+            raise
+        available = False
 
     if not available and throw_error:
         raise MissingPackageError(name, extras_name)

@@ -65,3 +65,23 @@ if not pythonjsonlogger.MSGSPEC_AVAILABLE:
         with pytest.raises(MissingPackageError, match="msgspec"):
             import pythonjsonlogger.msgspec
         return
+
+
+@pytest.mark.parametrize("name", [MISSING_PACKAGE_NAME + ".child", "json.missing.child"])
+def test_dotted_package_not_available(name):
+    assert not package_is_available(name)
+    with pytest.raises(MissingPackageError):
+        package_is_available(name, throw_error=True)
+
+
+def test_existing_dotted_package_is_available():
+    assert package_is_available("json.decoder")
+
+
+def test_missing_dependency_in_parent_is_not_hidden(tmp_path, monkeypatch):
+    package = tmp_path / "broken_parent_for_json_logger_test"
+    package.mkdir()
+    (package / "__init__.py").write_text("import missing_internal_dependency_for_test\n")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    with pytest.raises(ModuleNotFoundError, match="missing_internal_dependency_for_test"):
+        package_is_available("broken_parent_for_json_logger_test.child")
